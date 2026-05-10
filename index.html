@@ -876,8 +876,22 @@ function renderPhotoList(){
         <div class="photo-cap-name">${esc(p.caption)}</div>
         <div class="photo-cap-sub">📁 ${esc(p.folder||'未分類')}</div>
         <div class="photo-cap-sub">${esc(p.author)} · ${esc(p.date)}</div>
+        <button onclick="deletePhoto('${p.rowId}','${esc(p.caption)}')"
+          style="margin-top:6px;width:100%;padding:5px;border-radius:7px;border:none;
+          background:#fde8e8;color:var(--danger);font-size:11px;font-weight:700;cursor:pointer;">
+          🗑️ 削除
+        </button>
       </div>
     </div>`).join('')+'</div>';
+}
+async function deletePhoto(rowId, caption){
+  if(!confirm(`「${caption}」を削除しますか？\nドライブのファイルもゴミ箱に移動します。`)) return;
+  toast('⏳ 削除中…');
+  const d=await postGas({action:'deletePhoto', rowId});
+  if(d&&d.status==='ok'){
+    toast('🗑️ 写真を削除しました');
+    allPhotos=[]; loadPhotos();
+  } else toast('削除に失敗しました',true);
 }
 
 function previewPhoto(input){

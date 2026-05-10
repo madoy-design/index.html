@@ -143,12 +143,16 @@ textarea{resize:vertical;min-height:88px;line-height:1.65;}
   transition:all .2s;color:transparent;font-weight:700;
 }
 .pp-item.selected .pp-check{background:var(--primary);border-color:var(--primary);color:#fff;}
-.pp-label{font-size:10px;padding:4px 6px;color:var(--sub);font-weight:700;
+.pp-label{font-size:11px;color:var(--text);font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pp-info{
+  background:#fff;padding:5px 6px 6px;
+}
 .pp-folder-badge{
-  position:absolute;bottom:0;left:0;right:0;
-  background:rgba(61,122,94,.78);color:#fff;font-size:9px;font-weight:700;
-  padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:inline-block;
+  background:var(--primary-pale);color:var(--primary);font-size:9px;font-weight:700;
+  padding:2px 7px;border-radius:10px;margin-bottom:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
 }
 /* フォルダフィルター（写真選択モーダル内） */
 .pp-filter{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;scrollbar-width:none;}
@@ -824,8 +828,10 @@ function renderPpGrid(){
     return `<div class="pp-item ${sel}" onclick="togglePpItem(this,'${p.url}')" data-url="${p.url}">
       <img src="${p.url}" alt="${esc(p.caption)}" loading="lazy" onerror="this.style.background='#eee'">
       <div class="pp-check">✓</div>
-      <div class="pp-folder-badge">📁 ${esc(p.folder||'未分類')}</div>
-      <div class="pp-label">${esc(p.caption)}</div>
+      <div class="pp-info">
+        <div class="pp-folder-badge">📁 ${esc(p.folder||'未分類')}</div>
+        <div class="pp-label">${esc(p.caption)}</div>
+      </div>
     </div>`;
   }).join('');
   updatePpCount();

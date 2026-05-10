@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📰 PTA広報 共有ボード</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
+:root{
+  --primary:#3d7a5e;--primary-l:#5a9e7a;--primary-pale:#e8f5ee;
+  --accent:#f0a500;--accent-light:#fff3cc;
+  --bg:#f7f9f8;--card:#fff;--text:#2c3e35;--sub:#6b8278;
+  --border:#d4e6db;--danger:#e05c5c;
+  --radius:16px;--shadow:0 2px 12px rgba(61,122,94,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ========== ロック画面 ========== */
+#lockScreen{
+  position:fixed;inset:0;background:var(--primary);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;padding:32px;
+}
+#lockScreen.hidden{display:none;}
+.lock-logo{font-size:60px;margin-bottom:14px;}
+.lock-title{font-family:'M PLUS Rounded 1c',sans-serif;font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;}
+.lock-sub{font-size:13px;color:rgba(255,255,255,.7);margin-bottom:30px;}
+.lock-input-wrap{position:relative;width:100%;max-width:320px;}
+#pwInput{
+  width:100%;padding:15px 46px 15px 18px;border-radius:13px;
+  border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);
+  color:#fff;font-size:17px;font-family:'Noto Sans JP',sans-serif;
+  text-align:center;letter-spacing:.12em;outline:none;
+}
+#pwInput::placeholder{color:rgba(255,255,255,.45);letter-spacing:0;font-size:13px;}
+#pwInput:focus{border-color:var(--accent);}
+#pwEye{position:absolute;right:13px;top:50%;transform:translateY(-50%);
+  background:none;border:none;font-size:19px;color:rgba(255,255,255,.6);cursor:pointer;}
+#pwErr{color:#ffb3b3;font-size:12px;font-weight:700;min-height:18px;margin-top:6px;text-align:center;}
+#pwBtn{
+  margin-top:14px;width:100%;max-width:320px;padding:15px;border-radius:13px;border:none;
+  background:var(--accent);color:#fff;font-family:'M PLUS Rounded 1c',sans-serif;
+  font-size:16px;font-weight:800;cursor:pointer;
+}
+.lock-hint{font-size:11px;color:rgba(255,255,255,.45);margin-top:22px;}
+
+/* ========== ヘッダー・タブ ========== */
+header{background:var(--primary);position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.hdr{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:14px 16px 0;}
+.hdr-icon{font-size:24px;}
+.hdr-title{font-family:'M PLUS Rounded 1c',sans-serif;font-size:17px;font-weight:800;color:#fff;}
+.hdr-sub{font-size:10px;color:rgba(255,255,255,.7);margin-top:1px;}
+.hdr-lock{margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;
+  padding:6px 11px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;}
+.tabs{max-width:640px;margin:0 auto;display:flex;padding:0 4px;}
+.tab-btn{flex:1;padding:9px 2px;background:none;border:none;color:rgba(255,255,255,.6);
+  font-family:'Noto Sans JP',sans-serif;font-size:11px;font-weight:700;cursor:pointer;
+  border-bottom:3px solid transparent;transition:all .2s;
+  display:flex;flex-direction:column;align-items:center;gap:2px;}
+.tab-btn .ti{font-size:17px;}
+.tab-btn.active{color:#fff;border-bottom-color:var(--accent);}
+
+/* ========== メイン ========== */
+main{max-width:640px;margin:0 auto;padding:14px 14px 80px;}
+.tab-pane{display:none;}.tab-pane.active{display:block;}
+
+/* ========== カード ========== */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px;margin-bottom:14px;border:1px solid var(--border);}
+.card-title{font-family:'M PLUS Rounded 1c',sans-serif;font-size:14px;font-weight:700;
+  color:var(--primary);margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+
+/* ========== フォーム ========== */
+label{display:block;font-size:12px;font-weight:700;color:var(--sub);margin-bottom:5px;margin-top:12px;}
+label:first-of-type{margin-top:0;}
+input[type=text],input[type=date],input[type=time],input[type=password],textarea,select{
+  width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;
+  font-family:'Noto Sans JP',sans-serif;font-size:14px;color:var(--text);
+  background:var(--bg);outline:none;transition:border-color .2s;-webkit-appearance:none;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--primary);background:#fff;}
+textarea{resize:vertical;min-height:88px;line-height:1.65;}
+.sel-wrap{position:relative;}
+.sel-wrap::after{content:'▼';position:absolute;right:13px;top:50%;transform:translateY(-50%);
+  font-size:10px;color:var(--sub);pointer-events:none;}
+
+/* ========== ボタン ========== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 18px;
+  border-radius:12px;border:none;font-family:'Noto Sans JP',sans-serif;font-size:14px;font-weight:700;
+  cursor:pointer;transition:all .2s;width:100%;margin-top:12px;}
+.btn:active{transform:scale(.98);opacity:.88;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-outline{background:#fff;color:var(--primary);border:2px solid var(--primary);margin-top:8px;}
+.btn-sm{padding:7px 12px;font-size:11px;border-radius:8px;width:auto;margin-top:0;}
+.btn-danger{background:#fde8e8;color:var(--danger);border:none;}
+
+/* ========== フォルダバー ========== */
+.folder-bar{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none;}
+.folder-bar::-webkit-scrollbar{display:none;}
+.f-chip{flex-shrink:0;padding:7px 13px;border-radius:20px;font-size:12px;font-weight:700;
+  cursor:pointer;border:2px solid var(--border);background:#fff;color:var(--sub);
+  transition:all .2s;white-space:nowrap;}
+.f-chip.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.f-chip-add{flex-shrink:0;padding:7px 11px;border-radius:20px;font-size:12px;font-weight:700;
+  cursor:pointer;border:2px dashed var(--border);background:none;color:var(--sub);}
+
+/* ========== 記事リスト ========== */
+.article-item{
+  background:var(--card);border-radius:12px;border:1px solid var(--border);
+  padding:14px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;transition:all .2s;
+}
+.article-item:active{transform:scale(.99);}
+.art-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.art-author{font-size:11px;font-weight:700;color:#fff;background:var(--primary);padding:3px 10px;border-radius:20px;}
+.art-date{font-size:11px;color:var(--sub);}
+.art-title{font-size:15px;font-weight:700;margin-bottom:4px;}
+.art-body-preview{font-size:12px;color:var(--sub);line-height:1.5;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.art-folder-tag{display:inline-block;font-size:10px;background:var(--primary-pale);
+  color:var(--primary);padding:2px 8px;border-radius:20px;margin-top:6px;font-weight:700;}
+
+/* ── 紐付き写真サムネ ── */
+.art-photo-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+.art-photo-thumb{width:44px;height:44px;border-radius:7px;overflow:hidden;
+  border:1.5px solid var(--border);flex-shrink:0;}
+.art-photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.art-photo-more{width:44px;height:44px;border-radius:7px;background:var(--primary-pale);
+  display:flex;align-items:center;justify-content:center;font-size:11px;
+  font-weight:700;color:var(--primary);flex-shrink:0;}
+
+/* ========== 写真選択グリッド ========== */
+.photo-pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px;}
+.pp-item{border-radius:9px;overflow:hidden;border:2.5px solid var(--border);
+  position:relative;cursor:pointer;transition:all .2s;background:#f0f0f0;}
+.pp-item.selected{border-color:var(--primary);}
+.pp-item img{width:100%;aspect-ratio:1;object-fit:cover;display:block;}
+.pp-check{
+  position:absolute;top:5px;right:5px;width:20px;height:20px;border-radius:50%;
+  background:#fff;border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:11px;
+  transition:all .2s;color:transparent;font-weight:700;
+}
+.pp-item.selected .pp-check{background:var(--primary);border-color:var(--primary);color:#fff;}
+.pp-label{font-size:10px;padding:4px 6px;color:var(--sub);font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pp-folder-badge{
+  position:absolute;bottom:0;left:0;right:0;
+  background:rgba(61,122,94,.78);color:#fff;font-size:9px;font-weight:700;
+  padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* フォルダフィルター（写真選択モーダル内） */
+.pp-filter{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;scrollbar-width:none;}
+.pp-filter::-webkit-scrollbar{display:none;}
+.pp-f{flex-shrink:0;padding:5px 11px;border-radius:16px;font-size:11px;font-weight:700;
+  cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--sub);}
+.pp-f.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+
+/* ========== 写真タブ ========== */
+.photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.photo-item{border-radius:10px;overflow:hidden;border:1px solid var(--border);
+  background:var(--card);box-shadow:var(--shadow);}
+.photo-item img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;}
+.photo-cap{padding:8px 10px;}
+.photo-cap-name{font-size:12px;font-weight:700;margin-bottom:2px;}
+.photo-cap-sub{font-size:10px;color:var(--sub);}
+
+/* ========== スケジュール ========== */
+.sch-item{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border);}
+.sch-item:last-child{border-bottom:none;}
+.sch-date{min-width:46px;text-align:center;background:var(--primary-pale);border-radius:10px;padding:6px 4px;}
+.sch-month{font-size:10px;font-weight:700;color:var(--primary);}
+.sch-day{font-size:21px;font-weight:800;color:var(--primary);font-family:'M PLUS Rounded 1c',sans-serif;line-height:1;}
+.sch-wd{font-size:10px;color:var(--sub);font-weight:700;}
+.sch-info{flex:1;}
+.sch-lbl{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-bottom:4px;}
+.lbl-meet{background:#e8f0fe;color:#3d6fd6;}
+.lbl-dead{background:#fde8e8;color:#d63d3d;}
+.lbl-etc{background:var(--primary-pale);color:var(--primary);}
+.sch-title{font-size:14px;font-weight:700;}
+.sch-memo{font-size:11px;color:var(--sub);margin-top:2px;}
+
+/* ========== ファイルアップロード ========== */
+.upload-area{border:2px dashed var(--border);border-radius:12px;padding:22px;
+  text-align:center;cursor:pointer;background:var(--bg);margin-top:4px;}
+.upload-area:active{border-color:var(--primary);background:var(--primary-pale);}
+#photoPreview{width:100%;border-radius:10px;margin-top:10px;display:none;max-height:200px;object-fit:cover;}
+
+/* ========== モーダル ========== */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+  z-index:500;align-items:flex-end;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal-sheet{background:#fff;width:100%;max-width:640px;border-radius:22px 22px 0 0;
+  padding:18px 18px 40px;max-height:92vh;overflow-y:auto;animation:slideUp .28s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:38px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px;}
+.modal-title{font-family:'M PLUS Rounded 1c',sans-serif;font-size:16px;font-weight:800;
+  color:var(--primary);margin-bottom:14px;}
+
+/* ========== ローディング・空 ========== */
+.loading{text-align:center;padding:28px;color:var(--sub);font-size:13px;}
+.spinner{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--primary);
+  border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:32px 20px;color:var(--sub);}
+.empty-icon{font-size:36px;margin-bottom:8px;}
+.empty-text{font-size:13px;}
+
+/* ========== トースト ========== */
+#toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--primary);color:#fff;padding:11px 22px;border-radius:50px;
+  font-size:13px;font-weight:700;opacity:0;transition:all .3s;z-index:9000;
+  white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ========== その他 ========== */
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.sec-lbl{font-family:'M PLUS Rounded 1c',sans-serif;font-size:14px;font-weight:800;}
+.badge-conn{display:inline-flex;align-items:center;gap:5px;font-size:11px;
+  padding:4px 10px;border-radius:20px;font-weight:700;}
+.conn-ok{background:var(--primary-pale);color:var(--primary);}
+.conn-ng{background:#fde8e8;color:var(--danger);}
+.dot{width:7px;height:7px;border-radius:50%;}
+.dot-g{background:var(--primary);}
+.dot-r{background:var(--danger);}
+.gas-note{background:var(--accent-light);border:2px dashed var(--accent);
+  border-radius:11px;padding:12px;margin-bottom:14px;font-size:12px;}
+.gas-note strong{color:var(--accent);}
+.folder-manage-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;border:1px solid var(--border);border-radius:9px;margin-bottom:7px;background:var(--bg);}
+.folder-manage-name{font-size:13px;font-weight:700;}
+.pw-note{font-size:11px;color:var(--sub);margin-top:8px;line-height:1.7;}
+.selected-count-badge{
+  background:var(--primary);color:#fff;border-radius:20px;
+  font-size:12px;font-weight:700;padding:4px 12px;margin-left:auto;
+}
+</style>
+</head>
+<body>
+
+<!-- ======== ロック画面 ======== -->
+<div id="lockScreen">
+  <div class="lock-logo">📰</div>
+  <div class="lock-title">PTA広報 共有ボード</div>
+  <div class="lock-sub">みんなで作る PTA便り</div>
+  <div class="lock-input-wrap">
+    <input type="password" id="pwInput" placeholder="パスワードを入力" autocomplete="off"
+      onkeydown="if(event.key==='Enter')checkPw()">
+    <button id="pwEye" onclick="toggleEye()">👁</button>
+  </div>
+  <div id="pwErr"></div>
+  <button id="pwBtn" onclick="checkPw()">ログイン →</button>
+  <div class="lock-hint">パスワードは管理者から受け取ってください<br>初期パスワード: pta2024</div>
+</div>
+
+<!-- ======== ヘッダー ======== -->
+<header>
+  <div class="hdr">
+    <span class="hdr-icon">📰</span>
+    <div><div class="hdr-title">PTA広報 共有ボード</div><div class="hdr-sub">みんなで作る PTA便り</div></div>
+    <button class="hdr-lock" onclick="doLock()">🔒 ロック</button>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('sch',this)"><span class="ti">📅</span>スケジュール</button>
+    <button class="tab-btn" onclick="switchTab('art',this)"><span class="ti">✏️</span>記事</button>
+    <button class="tab-btn" onclick="switchTab('photo',this)"><span class="ti">📷</span>写真</button>
+    <button class="tab-btn" onclick="switchTab('cfg',this)"><span class="ti">⚙️</span>設定</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ======== スケジュール ======== -->
+<div id="pane-sch" class="tab-pane active">
+  <div class="card">
+    <div class="card-title">➕ スケジュールを登録</div>
+    <label>あなたの名前</label><input type="text" id="schAuthor" placeholder="例：田中">
+    <label>イベント名</label><input type="text" id="schTitle" placeholder="例：第1号 納品日">
+    <label>種別</label>
+    <div class="sel-wrap"><select id="schType">
+      <option value="打ち合わせ">🗓️ 打ち合わせ</option>
+      <option value="納品">📦 納品日</option>
+      <option value="締め切り">⏰ 締め切り</option>
+      <option value="その他">📌 その他</option>
+    </select></div>
+    <label>日付</label><input type="date" id="schDate">
+    <label>時間（任意）</label><input type="time" id="schTime">
+    <label>メモ（任意）</label><input type="text" id="schMemo" placeholder="例：図書室">
+    <button class="btn btn-primary" onclick="postSchedule()">📅 登録する</button>
+  </div>
+  <div class="sec-hdr">
+    <div class="sec-lbl">📋 登録済みスケジュール</div>
+    <button class="btn btn-outline btn-sm" onclick="loadSchedules()">🔄 更新</button>
+  </div>
+  <div id="schList"><div class="empty"><div class="empty-icon">📅</div><div class="empty-text">設定タブでGAS URLを登録してください</div></div></div>
+</div>
+
+<!-- ======== 記事 ======== -->
+<div id="pane-art" class="tab-pane">
+  <div class="card">
+    <div class="card-title">✏️ 記事を投稿</div>
+    <label>あなたの名前</label><input type="text" id="artAuthor" placeholder="例：山田">
+    <label>フォルダ</label>
+    <div class="sel-wrap"><select id="artFolder"></select></div>
+    <label>タイトル</label><input type="text" id="artTitle" placeholder="例：運動会レポート">
+    <label>本文</label><textarea id="artBody" placeholder="記事の内容を書いてください…"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-primary" style="margin-top:0" onclick="postArticle()">💾 投稿・保存</button>
+      <button class="btn btn-outline btn-sm" onclick="clearArtForm()">🗑️ クリア</button>
+    </div>
+  </div>
+  <div class="sec-hdr">
+    <div class="sec-lbl">📄 投稿された記事</div>
+    <button class="btn btn-outline btn-sm" onclick="loadArticles()">🔄 更新</button>
+  </div>
+  <div class="folder-bar" id="artFolderBar"></div>
+  <div id="artList"><div class="empty"><div class="empty-icon">✏️</div><div class="empty-text">設定タブでGAS URLを登録してください</div></div></div>
+</div>
+
+<!-- ======== 写真 ======== -->
+<div id="pane-photo" class="tab-pane">
+  <div class="card">
+    <div class="card-title">📷 写真をアップロード</div>
+    <label>あなたの名前</label><input type="text" id="photoAuthor" placeholder="例：鈴木">
+    <label>フォルダ</label>
+    <div class="sel-wrap"><select id="photoFolder"></select></div>
+    <label>写真の名前・説明</label><input type="text" id="photoCaption" placeholder="例：運動会 リレー場面">
+    <label>写真を選ぶ</label>
+    <div class="upload-area" onclick="document.getElementById('photoFile').click()">
+      <div style="font-size:28px;margin-bottom:4px;">📁</div>
+      <div style="font-size:13px;font-weight:700;color:var(--sub);">タップして写真を選ぶ</div>
+      <div style="font-size:11px;color:var(--sub);margin-top:3px;">カメラロールから選択できます</div>
+    </div>
+    <input type="file" id="photoFile" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+    <img id="photoPreview" alt="プレビュー">
+    <button class="btn btn-accent" onclick="uploadPhoto()">📤 アップロードする</button>
+  </div>
+  <div class="sec-hdr">
+    <div class="sec-lbl">🖼️ アップロード済み写真</div>
+    <button class="btn btn-outline btn-sm" onclick="loadPhotos()">🔄 更新</button>
+  </div>
+  <div class="folder-bar" id="photoFolderBar"></div>
+  <div id="photoList"><div class="empty"><div class="empty-icon">📷</div><div class="empty-text">設定タブでGAS URLを登録してください</div></div></div>
+</div>
+
+<!-- ======== 設定 ======== -->
+<div id="pane-cfg" class="tab-pane">
+  <div class="card">
+    <div class="card-title">⚙️ GAS URL の設定</div>
+    <div class="gas-note"><strong>⚠️ 最初に一度だけ設定が必要です</strong><br>GASウェブアプリのURLを貼り付けてください。</div>
+    <label>GAS ウェブアプリ URL</label>
+    <input type="text" id="gasUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    <button class="btn btn-primary" onclick="saveGasUrl()">💾 URLを保存</button>
+    <button class="btn btn-outline" onclick="testConn()">🔗 接続テスト</button>
+    <div id="connStatus" style="margin-top:10px;"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🔒 パスワード変更</div>
+    <label>現在のパスワード</label><input type="password" id="pwCur" placeholder="現在のパスワード" autocomplete="off">
+    <label>新しいパスワード（4文字以上）</label><input type="password" id="pwNew" placeholder="新しいパスワード" autocomplete="off">
+    <label>確認</label><input type="password" id="pwNewC" placeholder="もう一度入力" autocomplete="off">
+    <button class="btn btn-primary" onclick="changePw()">🔑 パスワードを変更</button>
+    <div class="pw-note">※ 変更後は他のメンバーにも新しいパスワードをLINEで共有してください。</div>
+  </div>
+  <div class="card">
+    <div class="card-title">📁 フォルダ管理</div>
+    <div id="folderMgr"></div>
+    <button class="btn btn-outline" onclick="openAddFolder('art')" style="margin-top:8px;">✏️ 記事フォルダを追加</button>
+    <button class="btn btn-outline" onclick="openAddFolder('photo')" style="margin-top:8px;">📷 写真フォルダを追加</button>
+  </div>
+  <div class="card">
+    <div class="card-title">📖 使い方</div>
+    <div style="font-size:13px;line-height:1.9;color:var(--sub);">
+      <p>① 管理者がGASを設定・公開してURLを取得</p>
+      <p>② URLとパスワードをLINEでメンバーに共有</p>
+      <p>③ 各自がHTMLを開き設定タブでURLを入力</p>
+      <p style="color:var(--primary);font-weight:700;margin-top:6px;">💡 初期パスワード：pta2024</p>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ======== 記事編集モーダル ======== -->
+<div class="modal-overlay" id="artModal" onclick="bgClose(event,'artModal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📝 記事を編集</div>
+    <input type="hidden" id="editRowId">
+    <label>フォルダ</label>
+    <div class="sel-wrap"><select id="editFolder"></select></div>
+    <label>タイトル</label><input type="text" id="editTitle">
+    <label>本文</label><textarea id="editBody" style="min-height:130px;"></textarea>
+
+    <!-- 紐付き写真セクション -->
+    <div style="margin-top:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--sub);">📷 紐付けた写真</div>
+        <button class="btn btn-outline btn-sm" onclick="openPhotoPick()">写真を選ぶ</button>
+      </div>
+      <div id="linkedPhotoRow" style="display:flex;gap:6px;flex-wrap:wrap;min-height:10px;"></div>
+      <div id="linkedPhotoEmpty" style="font-size:12px;color:var(--sub);display:none;">まだ写真が選ばれていません</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="updateArticle()">💾 更新する</button>
+    <button class="btn btn-danger" style="width:100%;margin-top:8px;" onclick="deleteArticle()">🗑️ この記事を削除</button>
+    <button class="btn btn-outline" onclick="closeModal('artModal')">キャンセル</button>
+  </div>
+</div>
+
+<!-- ======== 写真選択モーダル ======== -->
+<div class="modal-overlay" id="photoPickModal" onclick="bgClose(event,'photoPickModal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;margin-bottom:12px;">
+      <div class="modal-title" style="margin-bottom:0;">📷 写真を選ぶ</div>
+      <div id="ppSelCount" class="selected-count-badge" style="display:none;">0枚選択中</div>
+    </div>
+    <div class="pp-filter" id="ppFilter"></div>
+    <div class="photo-pick-grid" id="ppGrid"></div>
+    <button class="btn btn-primary" onclick="confirmPhotoPick()">✅ この写真を紐付ける</button>
+    <button class="btn btn-outline" onclick="closeModal('photoPickModal')">キャンセル</button>
+  </div>
+</div>
+
+<!-- ======== フォルダ追加モーダル ======== -->
+<div class="modal-overlay" id="folderModal" onclick="bgClose(event,'folderModal')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="folderModalTitle">📁 フォルダを追加</div>
+    <input type="hidden" id="folderModalType">
+    <label>フォルダ名</label>
+    <input type="text" id="newFolderName" placeholder="例：第1回記事、運動会写真">
+    <button class="btn btn-primary" onclick="addFolder()">📁 フォルダを作成</button>
+    <button class="btn btn-outline" onclick="closeModal('folderModal')">キャンセル</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// 定数
+// ============================================================
+const GAS_KEY    = 'pta_gas_url';
+const PW_KEY     = 'pta_password';
+const AUTH_KEY   = 'pta_authed';
+const FOLDER_KEY = 'pta_folders_v3';
+const DEFAULT_PW = 'pta2024';
+const DEFAULT_FOLDERS = {
+  art:   ['第1回記事','第2回記事','第3回記事'],
+  photo: ['先生写真','行事写真','その他写真']
+};
+
+let gasUrl = '';
+let allArticles = [];
+let allPhotos   = [];
+let artFilter   = 'すべて';
+let photoFilter = 'すべて';
+let ppFilter    = 'すべて';   // 写真選択モーダル内フィルター
+let editingLinked = [];       // 編集中の紐付け写真URL配列
+
+// ============================================================
+// パスワード
+// ============================================================
+const getPw = () => localStorage.getItem(PW_KEY) || DEFAULT_PW;
+function checkPw(){
+  const v = document.getElementById('pwInput').value;
+  if(v === getPw()){
+    sessionStorage.setItem(AUTH_KEY,'1');
+    document.getElementById('lockScreen').classList.add('hidden');
+    initApp();
+  } else {
+    document.getElementById('pwErr').textContent = 'パスワードが違います';
+    document.getElementById('pwInput').value = '';
+    setTimeout(()=>document.getElementById('pwErr').textContent='', 2000);
+  }
+}
+function doLock(){
+  if(!confirm('ロックしますか？')) return;
+  sessionStorage.removeItem(AUTH_KEY);
+  document.getElementById('pwInput').value='';
+  document.getElementById('pwErr').textContent='';
+  document.getElementById('lockScreen').classList.remove('hidden');
+}
+function toggleEye(){
+  const i=document.getElementById('pwInput');
+  i.type = i.type==='password'?'text':'password';
+}
+function changePw(){
+  const cur=document.getElementById('pwCur').value;
+  const nw=document.getElementById('pwNew').value;
+  const nc=document.getElementById('pwNewC').value;
+  if(cur!==getPw()){ toast('現在のパスワードが違います',true); return; }
+  if(nw.length<4){ toast('4文字以上のパスワードを設定してください',true); return; }
+  if(nw!==nc){ toast('新しいパスワードが一致しません',true); return; }
+  localStorage.setItem(PW_KEY,nw);
+  ['pwCur','pwNew','pwNewC'].forEach(id=>document.getElementById(id).value='');
+  toast('✅ パスワードを変更しました！LINEで共有してください');
+}
+
+// ============================================================
+// フォルダ管理
+// ============================================================
+function getFolders(){ const s=localStorage.getItem(FOLDER_KEY); return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_FOLDERS)); }
+function saveFolders(f){ localStorage.setItem(FOLDER_KEY,JSON.stringify(f)); }
+
+function openAddFolder(type){
+  document.getElementById('folderModalType').value=type;
+  document.getElementById('folderModalTitle').textContent = type==='art'?'✏️ 記事フォルダを追加':'📷 写真フォルダを追加';
+  document.getElementById('newFolderName').value='';
+  openModal('folderModal');
+}
+function addFolder(){
+  const name=document.getElementById('newFolderName').value.trim();
+  const type=document.getElementById('folderModalType').value;
+  if(!name){ toast('フォルダ名を入力してください',true); return; }
+  const f=getFolders();
+  if(f[type].includes(name)){ toast('同じ名前のフォルダがあります',true); return; }
+  f[type].push(name); saveFolders(f);
+  closeModal('folderModal'); toast('📁 フォルダを作成しました！');
+  refreshFolderUI(); renderFolderMgr();
+}
+function delFolder(type,name){
+  if(!confirm(`「${name}」を削除しますか？`)) return;
+  const f=getFolders();
+  f[type]=f[type].filter(x=>x!==name); saveFolders(f);
+  toast('🗑️ フォルダを削除しました');
+  refreshFolderUI(); renderFolderMgr();
+}
+
+function refreshFolderUI(){
+  const f=getFolders();
+  fillSelect('artFolder', f.art);
+  fillSelect('editFolder', f.art);
+  fillSelect('photoFolder', f.photo);
+  renderFolderBar('artFolderBar', f.art, 'art');
+  renderFolderBar('photoFolderBar', f.photo, 'photo');
+}
+function fillSelect(id,list){
+  const sel=document.getElementById(id); if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML=list.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
+  if(list.includes(cur)) sel.value=cur;
+}
+function renderFolderBar(elId, list, type){
+  const cur = type==='art'? artFilter : photoFilter;
+  document.getElementById(elId).innerHTML=
+    `<button class="f-chip ${cur==='すべて'?'active':''}" onclick="setFilter('${type}','すべて')">すべて</button>`+
+    list.map(f=>`<button class="f-chip ${cur===f?'active':''}" onclick="setFilter('${type}','${esc(f)}')">${esc(f)}</button>`).join('')+
+    `<button class="f-chip-add" onclick="openAddFolder('${type}')">＋</button>`;
+}
+function setFilter(type,val){
+  if(type==='art'){ artFilter=val; refreshFolderUI(); renderArticleList(); }
+  else { photoFilter=val; refreshFolderUI(); renderPhotoList(); }
+}
+function renderFolderMgr(){
+  const f=getFolders(); const el=document.getElementById('folderMgr'); if(!el) return;
+  let h='';
+  [['art','✏️ 記事フォルダ'],['photo','📷 写真フォルダ']].forEach(([type,label])=>{
+    h+=`<div style="font-size:12px;font-weight:700;color:var(--sub);margin:10px 0 6px;">${label}</div>`;
+    h+=f[type].map(name=>`<div class="folder-manage-row">
+      <div class="folder-manage-name">📁 ${esc(name)}</div>
+      <button class="btn btn-danger btn-sm" onclick="delFolder('${type}','${esc(name)}')">削除</button>
+    </div>`).join('');
+  });
+  el.innerHTML=h||'<div style="font-size:13px;color:var(--sub);">フォルダがありません</div>';
+}
+
+// ============================================================
+// タブ
+// ============================================================
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-pane').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
+  document.getElementById('pane-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='sch')   loadSchedules();
+  if(name==='art')   loadArticles();
+  if(name==='photo') loadPhotos();
+  if(name==='cfg'){
+    document.getElementById('gasUrlInput').value=gasUrl;
+    renderFolderMgr();
+  }
+}
+
+// ============================================================
+// モーダル
+// ============================================================
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function bgClose(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
+
+// ============================================================
+// トースト
+// ============================================================
+function toast(msg,isErr=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=isErr?'#e05c5c':'var(--primary)';
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ============================================================
+// GAS通信
+// ============================================================
+function saveGasUrl(){
+  const u=document.getElementById('gasUrlInput').value.trim();
+  if(!u){ toast('URLを入力してください',true); return; }
+  gasUrl=u; localStorage.setItem(GAS_KEY,gasUrl); toast('✅ URLを保存しました！');
+}
+async function testConn(){
+  if(!gasUrl){ toast('先にURLを保存してください',true); return; }
+  document.getElementById('connStatus').innerHTML='<div style="font-size:12px;color:var(--sub);">🔄 確認中…</div>';
+  try{
+    const r=await fetch(gasUrl+'?action=ping'); const d=await r.json();
+    document.getElementById('connStatus').innerHTML=
+      d.status==='ok'
+        ? '<span class="badge-conn conn-ok"><span class="dot dot-g"></span>接続成功！</span>'
+        : '<span class="badge-conn conn-ng"><span class="dot dot-r"></span>接続失敗</span>';
+  }catch{
+    document.getElementById('connStatus').innerHTML='<span class="badge-conn conn-ng"><span class="dot dot-r"></span>接続失敗。URLを確認してください</span>';
+  }
+}
+async function callGas(params){
+  if(!gasUrl){ toast('設定タブでGAS URLを登録してください',true); return null; }
+  try{ const r=await fetch(gasUrl+'?'+new URLSearchParams(params)); return await r.json(); }
+  catch{ toast('通信エラーが発生しました',true); return null; }
+}
+async function postGas(body){
+  if(!gasUrl){ toast('設定タブでGAS URLを登録してください',true); return null; }
+  try{ const r=await fetch(gasUrl,{method:'POST',body:JSON.stringify(body)}); return await r.json(); }
+  catch{ toast('通信エラーが発生しました',true); return null; }
+}
+
+// ============================================================
+// スケジュール
+// ============================================================
+async function loadSchedules(){
+  const el=document.getElementById('schList');
+  el.innerHTML='<div class="loading"><div class="spinner"></div>読み込み中…</div>';
+  const d=await callGas({action:'getSchedules'});
+  if(!d||!d.data){ el.innerHTML='<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">読み込みに失敗しました</div></div>'; return; }
+  if(!d.data.length){ el.innerHTML='<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">まだスケジュールがありません</div></div>'; return; }
+  const WD=['日','月','火','水','木','金','土'];
+  el.innerHTML=d.data.map(r=>{
+    const dt=new Date(r.date);
+    const wd=isNaN(dt)?'':WD[dt.getDay()];
+    const mon=isNaN(dt)?'':((dt.getMonth()+1)+'月');
+    const day=isNaN(dt)?r.date:dt.getDate();
+    const lc=r.type==='打ち合わせ'?'lbl-meet':(r.type==='納品'||r.type==='締め切り')?'lbl-dead':'lbl-etc';
+    return `<div class="sch-item">
+      <div class="sch-date"><div class="sch-month">${mon}</div><div class="sch-day">${day}</div><div class="sch-wd">${wd}</div></div>
+      <div class="sch-info">
+        <span class="sch-lbl ${lc}">${r.type}</span>
+        <div class="sch-title">${esc(r.title)}</div>
+        ${r.time?`<div class="sch-memo">🕐 ${r.time}</div>`:''}
+        ${r.memo?`<div class="sch-memo">📍 ${esc(r.memo)}</div>`:''}
+        <div class="sch-memo" style="margin-top:3px;">登録: ${esc(r.author)}</div>
+      </div></div>`;
+  }).join('');
+}
+async function postSchedule(){
+  const author=document.getElementById('schAuthor').value.trim();
+  const title=document.getElementById('schTitle').value.trim();
+  const date=document.getElementById('schDate').value;
+  if(!author||!title||!date){ toast('名前・イベント名・日付は必須です',true); return; }
+  const d=await postGas({action:'addSchedule',author,title,date,
+    type:document.getElementById('schType').value,
+    time:document.getElementById('schTime').value,
+    memo:document.getElementById('schMemo').value.trim()});
+  if(d&&d.status==='ok'){
+    toast('📅 スケジュールを登録しました！');
+    ['schTitle','schDate','schTime','schMemo'].forEach(id=>document.getElementById(id).value='');
+    loadSchedules();
+  } else toast('登録に失敗しました',true);
+}
+
+// ============================================================
+// 記事
+// ============================================================
+async function loadArticles(){
+  const el=document.getElementById('artList');
+  el.innerHTML='<div class="loading"><div class="spinner"></div>読み込み中…</div>';
+  const d=await callGas({action:'getArticles'});
+  if(!d||!d.data){ el.innerHTML='<div class="empty"><div class="empty-icon">✏️</div><div class="empty-text">読み込みに失敗しました</div></div>'; return; }
+  allArticles=d.data;
+  renderArticleList();
+}
+
+function renderArticleList(){
+  const el=document.getElementById('artList');
+  const list=artFilter==='すべて'?allArticles:allArticles.filter(r=>r.folder===artFilter);
+  if(!list.length){ el.innerHTML='<div class="empty"><div class="empty-icon">✏️</div><div class="empty-text">まだ記事がありません</div></div>'; return; }
+  el.innerHTML=list.map(row=>{
+    const photos=row.photos||[];
+    const thumbs=photos.slice(0,3).map(u=>
+      `<div class="art-photo-thumb"><img src="${u}" loading="lazy" onerror="this.style.display='none'"></div>`
+    ).join('');
+    const more=photos.length>3?`<div class="art-photo-more">+${photos.length-3}</div>`:'';
+    const photoRow=photos.length?`<div class="art-photo-row">${thumbs}${more}</div>`:'';
+    return `<div class="article-item" onclick='openArtModal(${JSON.stringify(row).replace(/'/g,"&#39;")})'>
+      <div class="art-meta">
+        <span class="art-author">${esc(row.author)}</span>
+        <span class="art-date">${esc(row.date)}</span>
+      </div>
+      <div class="art-title">${esc(row.title)}</div>
+      <div class="art-body-preview">${esc(row.body)}</div>
+      <span class="art-folder-tag">📁 ${esc(row.folder||'未分類')}</span>
+      ${photoRow}
+    </div>`;
+  }).join('');
+}
+
+async function postArticle(){
+  const author=document.getElementById('artAuthor').value.trim();
+  const title=document.getElementById('artTitle').value.trim();
+  const body=document.getElementById('artBody').value.trim();
+  if(!author||!title||!body){ toast('名前・タイトル・本文は必須です',true); return; }
+  const d=await postGas({action:'addArticle',author,title,body,
+    folder:document.getElementById('artFolder').value});
+  if(d&&d.status==='ok'){ toast('✅ 記事を投稿しました！'); clearArtForm(); loadArticles(); }
+  else toast('投稿に失敗しました',true);
+}
+function clearArtForm(){
+  document.getElementById('artTitle').value='';
+  document.getElementById('artBody').value='';
+}
+
+// -------- 記事編集モーダル --------
+function openArtModal(row){
+  document.getElementById('editRowId').value=row.rowId;
+  document.getElementById('editTitle').value=row.title;
+  document.getElementById('editBody').value=row.body;
+  fillSelect('editFolder',getFolders().art);
+  if(row.folder) document.getElementById('editFolder').value=row.folder;
+  editingLinked=row.photos||[];
+  renderLinkedPhotos();
+  openModal('artModal');
+}
+function renderLinkedPhotos(){
+  const row=document.getElementById('linkedPhotoRow');
+  const empty=document.getElementById('linkedPhotoEmpty');
+  if(!editingLinked.length){
+    row.innerHTML=''; empty.style.display='block'; return;
+  }
+  empty.style.display='none';
+  row.innerHTML=editingLinked.map(u=>
+    `<div style="position:relative;width:54px;height:54px;flex-shrink:0;">
+      <div class="art-photo-thumb" style="width:54px;height:54px;border-radius:8px;">
+        <img src="${u}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">
+      </div>
+      <button onclick="removeLinked('${u}')" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;
+        border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:10px;
+        font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>`
+  ).join('');
+}
+function removeLinked(url){
+  editingLinked=editingLinked.filter(u=>u!==url);
+  renderLinkedPhotos();
+}
+async function updateArticle(){
+  const d=await postGas({action:'updateArticle',
+    rowId:document.getElementById('editRowId').value,
+    title:document.getElementById('editTitle').value,
+    body:document.getElementById('editBody').value,
+    folder:document.getElementById('editFolder').value,
+    photos:editingLinked});
+  if(d&&d.status==='ok'){ toast('✅ 記事を更新しました！'); closeModal('artModal'); loadArticles(); }
+  else toast('更新に失敗しました',true);
+}
+async function deleteArticle(){
+  if(!confirm('この記事を削除しますか？')) return;
+  const d=await postGas({action:'deleteArticle',rowId:document.getElementById('editRowId').value});
+  if(d&&d.status==='ok'){ toast('🗑️ 削除しました'); closeModal('artModal'); loadArticles(); }
+  else toast('削除に失敗しました',true);
+}
+
+// ============================================================
+// 写真選択モーダル（記事紐付け）
+// ============================================================
+async function openPhotoPick(){
+  // 写真がなければ先に読み込む
+  if(!allPhotos.length){
+    const d=await callGas({action:'getPhotos'});
+    allPhotos=d&&d.data?d.data:[];
+  }
+  ppFilter='すべて';
+  renderPpFilter();
+  renderPpGrid();
+  openModal('photoPickModal');
+}
+
+function renderPpFilter(){
+  const folders=getFolders().photo;
+  document.getElementById('ppFilter').innerHTML=
+    `<button class="pp-f ${ppFilter==='すべて'?'active':''}" onclick="setPpFilter('すべて')">すべて</button>`+
+    folders.map(f=>`<button class="pp-f ${ppFilter===f?'active':''}" onclick="setPpFilter('${esc(f)}')">${esc(f)}</button>`).join('');
+}
+function setPpFilter(val){ ppFilter=val; renderPpFilter(); renderPpGrid(); }
+
+function renderPpGrid(){
+  const list=ppFilter==='すべて'?allPhotos:allPhotos.filter(p=>p.folder===ppFilter);
+  const grid=document.getElementById('ppGrid');
+  if(!list.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--sub);font-size:13px;">このフォルダに写真がありません</div>';
+    updatePpCount(); return;
+  }
+  grid.innerHTML=list.map(p=>{
+    const sel=editingLinked.includes(p.url)?'selected':'';
+    return `<div class="pp-item ${sel}" onclick="togglePpItem(this,'${p.url}')" data-url="${p.url}">
+      <img src="${p.url}" alt="${esc(p.caption)}" loading="lazy" onerror="this.style.background='#eee'">
+      <div class="pp-check">✓</div>
+      <div class="pp-folder-badge">📁 ${esc(p.folder||'未分類')}</div>
+      <div class="pp-label">${esc(p.caption)}</div>
+    </div>`;
+  }).join('');
+  updatePpCount();
+}
+function togglePpItem(el,url){
+  el.classList.toggle('selected');
+  if(el.classList.contains('selected')){
+    if(!editingLinked.includes(url)) editingLinked.push(url);
+  } else {
+    editingLinked=editingLinked.filter(u=>u!==url);
+  }
+  updatePpCount();
+}
+function updatePpCount(){
+  const badge=document.getElementById('ppSelCount');
+  if(editingLinked.length>0){
+    badge.style.display='inline-block';
+    badge.textContent=editingLinked.length+'枚選択中';
+  } else {
+    badge.style.display='none';
+  }
+}
+function confirmPhotoPick(){
+  renderLinkedPhotos();
+  closeModal('photoPickModal');
+  toast(`📷 ${editingLinked.length}枚の写真を選びました。「更新する」で保存してください。`);
+}
+
+// ============================================================
+// 写真
+// ============================================================
+async function loadPhotos(){
+  const el=document.getElementById('photoList');
+  el.innerHTML='<div class="loading"><div class="spinner"></div>読み込み中…</div>';
+  const d=await callGas({action:'getPhotos'});
+  if(!d||!d.data){ el.innerHTML='<div class="empty"><div class="empty-icon">📷</div><div class="empty-text">読み込みに失敗しました</div></div>'; return; }
+  allPhotos=d.data;
+  renderPhotoList();
+}
+function renderPhotoList(){
+  const el=document.getElementById('photoList');
+  const list=photoFilter==='すべて'?allPhotos:allPhotos.filter(p=>p.folder===photoFilter);
+  if(!list.length){ el.innerHTML='<div class="empty"><div class="empty-icon">📷</div><div class="empty-text">まだ写真がありません</div></div>'; return; }
+  el.innerHTML='<div class="photo-grid">'+list.map(p=>`
+    <div class="photo-item">
+      <img src="${p.url}" alt="${esc(p.caption)}" loading="lazy" onerror="this.style.background='#eee';this.style.height='90px'">
+      <div class="photo-cap">
+        <div class="photo-cap-name">${esc(p.caption)}</div>
+        <div class="photo-cap-sub">📁 ${esc(p.folder||'未分類')}</div>
+        <div class="photo-cap-sub">${esc(p.author)} · ${esc(p.date)}</div>
+      </div>
+    </div>`).join('')+'</div>';
+}
+
+function previewPhoto(input){
+  const file=input.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>{const img=document.getElementById('photoPreview');img.src=e.target.result;img.style.display='block';};
+  r.readAsDataURL(file);
+}
+async function uploadPhoto(){
+  const author=document.getElementById('photoAuthor').value.trim();
+  const caption=document.getElementById('photoCaption').value.trim();
+  const folder=document.getElementById('photoFolder').value;
+  const file=document.getElementById('photoFile').files[0];
+  if(!author||!caption){ toast('名前と写真の名前を入力してください',true); return; }
+  if(!file){ toast('写真を選んでください',true); return; }
+  if(file.size>5*1024*1024){ toast('5MB以下の写真を選んでください',true); return; }
+  toast('📤 アップロード中…');
+  const rd=new FileReader();
+  rd.onload=async e=>{
+    const d=await postGas({action:'uploadPhoto',author,caption,folder,
+      fileName:file.name,mimeType:file.type,base64:e.target.result.split(',')[1]});
+    if(d&&d.status==='ok'){
+      toast('✅ アップロードしました！');
+      document.getElementById('photoCaption').value='';
+      document.getElementById('photoFile').value='';
+      document.getElementById('photoPreview').style.display='none';
+      allPhotos=[]; loadPhotos();
+    } else toast('アップロードに失敗しました',true);
+  };
+  rd.readAsDataURL(file);
+}
+
+// ============================================================
+// ユーティリティ
+// ============================================================
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ============================================================
+// 起動
+// ============================================================
+function initApp(){
+  gasUrl=localStorage.getItem(GAS_KEY)||'';
+  refreshFolderUI();
+  loadSchedules();
+}
+window.onload=()=>{
+  if(sessionStorage.getItem(AUTH_KEY)==='1'){
+    document.getElementById('lockScreen').classList.add('hidden');
+    initApp();
+  }
+  document.getElementById('pwInput').focus();
+};
+</script>
+</body>
+</html>

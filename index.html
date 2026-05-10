@@ -717,9 +717,13 @@ async function postArticle(){
   const title=document.getElementById('artTitle').value.trim();
   const body=document.getElementById('artBody').value.trim();
   if(!author||!title||!body){ toast('名前・タイトル・本文は必須です',true); return; }
+  // 写真選択がある場合はオリジナルURLで送信
+  const photoUrls=editingLinked.map(item=>typeof item==='object'?item.origUrl:item);
+  toast('⏳ Googleドライブに保存中…（しばらくお待ちください）');
   const d=await postGas({action:'addArticle',author,title,body,
-    folder:document.getElementById('artFolder').value});
-  if(d&&d.status==='ok'){ toast('✅ 記事を投稿しました！'); clearArtForm(); loadArticles(); }
+    folder:document.getElementById('artFolder').value,
+    photos:photoUrls});
+  if(d&&d.status==='ok'){ toast('✅ 記事を投稿しました！ドライブにフォルダを作成しました'); clearArtForm(); editingLinked=[]; loadArticles(); }
   else toast('投稿に失敗しました',true);
 }
 function clearArtForm(){
@@ -734,46 +738,53 @@ function openArtModal(row){
   document.getElementById('editBody').value=row.body;
   fillSelect('editFolder',getFolders().art);
   if(row.folder) document.getElementById('editFolder').value=row.folder;
-  editingLinked=row.photos||[];
+  // photos配列はURLの文字列配列として保持
+  editingLinked=(row.photos||[]).map(u=>u);
   renderLinkedPhotos();
   openModal('artModal');
 }
 function renderLinkedPhotos(){
-  const row=document.getElementById('linkedPhotoRow');
+  const rowEl=document.getElementById('linkedPhotoRow');
   const empty=document.getElementById('linkedPhotoEmpty');
   if(!editingLinked.length){
-    row.innerHTML=''; empty.style.display='block'; return;
+    rowEl.innerHTML=''; empty.style.display='block'; return;
   }
   empty.style.display='none';
-  row.innerHTML=editingLinked.map(u=>
-    `<div style="position:relative;width:54px;height:54px;flex-shrink:0;">
+  // editingLinkedはURL文字列の配列
+  rowEl.innerHTML=editingLinked.map((u,idx)=>{
+    const displayUrl=typeof u==='object'?u.thumbUrl:u;
+    return `<div style="position:relative;width:54px;height:54px;flex-shrink:0;">
       <div class="art-photo-thumb" style="width:54px;height:54px;border-radius:8px;">
-        <img src="${u}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">
+        <img src="${displayUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">
       </div>
-      <button onclick="removeLinked('${u}')" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;
+      <button onclick="removeLinked(${idx})" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;
         border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:10px;
         font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 }
-function removeLinked(url){
-  editingLinked=editingLinked.filter(u=>u!==url);
+function removeLinked(idx){
+  editingLinked.splice(idx,1);
   renderLinkedPhotos();
 }
 async function updateArticle(){
+  // オリジナルURLで送信（GAS側でfileIdを逆引きしてコピー）
+  const photoUrls=editingLinked.map(item=>typeof item==='object'?item.origUrl:item);
+  toast('⏳ Googleドライブを更新中…（しばらくお待ちください）');
   const d=await postGas({action:'updateArticle',
     rowId:document.getElementById('editRowId').value,
     title:document.getElementById('editTitle').value,
     body:document.getElementById('editBody').value,
     folder:document.getElementById('editFolder').value,
-    photos:editingLinked});
-  if(d&&d.status==='ok'){ toast('✅ 記事を更新しました！'); closeModal('artModal'); loadArticles(); }
+    photos:photoUrls});
+  if(d&&d.status==='ok'){ toast('✅ 記事を更新しました！ドライブフォルダも更新しました'); closeModal('artModal'); loadArticles(); }
   else toast('更新に失敗しました',true);
 }
 async function deleteArticle(){
-  if(!confirm('この記事を削除しますか？')) return;
+  if(!confirm('この記事を削除しますか？\nGoogleドライブのフォルダも削除されます。')) return;
+  toast('⏳ 削除中…');
   const d=await postGas({action:'deleteArticle',rowId:document.getElementById('editRowId').value});
-  if(d&&d.status==='ok'){ toast('🗑️ 削除しました'); closeModal('artModal'); loadArticles(); }
+  if(d&&d.status==='ok'){ toast('🗑️ 削除しました（ドライブのフォルダも削除）'); closeModal('artModal'); loadArticles(); }
   else toast('削除に失敗しました',true);
 }
 
@@ -808,6 +819,7 @@ function renderPpGrid(){
     updatePpCount(); return;
   }
   grid.innerHTML=list.map(p=>{
+    // editingLinkedはURL文字列の配列
     const sel=editingLinked.includes(p.url)?'selected':'';
     return `<div class="pp-item ${sel}" onclick="togglePpItem(this,'${p.url}')" data-url="${p.url}">
       <img src="${p.url}" alt="${esc(p.caption)}" loading="lazy" onerror="this.style.background='#eee'">

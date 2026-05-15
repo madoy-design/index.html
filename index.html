@@ -768,13 +768,18 @@ function renderCal(){
   const today=new Date(); today.setHours(0,0,0,0);
   // スケジュールを日付でマップ化
   const evMap={};
+  // 日付を yyyy/MM/dd に正規化してマップ化
+  function normalizeDate(s){
+    if(!s) return '';
+    return String(s).replace(/-/g,'/').substring(0,10);
+  }
   allSchedules.forEach(r=>{
-    const key=r.date; // "yyyy/MM/dd" or "yyyy-MM-dd"
+    const key=normalizeDate(r.date);
     if(!evMap[key]) evMap[key]=[];
     evMap[key].push(r);
   });
   function toKey(y,m,d){ return y+'/'+String(m+1).padStart(2,'0')+'/'+String(d).padStart(2,'0'); }
-  function toKey2(y,m,d){ return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+  function toKey2(y,m,d){ return toKey(y,m,d); } // 統一
   let cells='';
   let total=firstDay+lastDate; let rows=Math.ceil(total/7);
   for(let i=0;i<rows*7;i++){
@@ -805,9 +810,8 @@ function renderCal(){
 }
 
 function showCalDay(y,mo,d){
-  const k1=y+'/'+String(mo+1).padStart(2,'0')+'/'+String(d).padStart(2,'0');
-  const k2=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-  const evs=allSchedules.filter(r=>r.date===k1||r.date===k2);
+  const k=y+'/'+String(mo+1).padStart(2,'0')+'/'+String(d).padStart(2,'0');
+  const evs=allSchedules.filter(r=>String(r.date).replace(/-/g,'/').substring(0,10)===k);
   const detail=document.getElementById('calDayDetail');
   const label=document.getElementById('calDayLabel');
   const list=document.getElementById('calDayList');
@@ -850,7 +854,7 @@ function openSchModal(r){
   document.getElementById('editSchRowId').value=r.rowId;
   document.getElementById('editSchTitle').value=r.title;
   document.getElementById('editSchType').value=r.type;
-  document.getElementById('editSchDate').value=r.date.replace(/\//g,'-');
+  document.getElementById('editSchDate').value=String(r.date).replace(/\//g,'-').substring(0,10);
   document.getElementById('editSchTime').value=r.time||'';
   document.getElementById('editSchMemo').value=r.memo||'';
   document.getElementById('editSchAuthor').value=r.author||'';

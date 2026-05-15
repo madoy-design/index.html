@@ -546,7 +546,8 @@ let allPhotos   = [];
 let artFilter   = 'すべて';
 let photoFilter = 'すべて';
 let ppFilter    = 'すべて';   // 写真選択モーダル内フィルター
-let editingLinked = [];       // 編集中の紐付け写真URL配列
+let editingLinked = [];       // 編集中の紐付け写真URL配列（表示用）
+let editingOrigLinked = [];   // 編集中の紐付け写真URL配列（元URL・再コピー用）
 
 // ============================================================
 // パスワード
@@ -941,8 +942,9 @@ async function postArticle(){
   toast('⏳ Googleドライブに保存中…（しばらくお待ちください）');
   const d=await postGas({action:'addArticle',author,title,body,
     folder:document.getElementById('artFolder').value,
-    photos:photoUrls});
-  if(d&&d.status==='ok'){ toast('✅ 記事を投稿しました！ドライブにフォルダを作成しました'); clearArtForm(); editingLinked=[]; loadArticles(); }
+    photos:photoUrls,
+    origPhotos:photoUrls}); // 新規投稿時はphotoUrls=元URLなのでそのまま
+  if(d&&d.status==='ok'){ toast('✅ 記事を投稿しました！ドライブにフォルダを作成しました'); clearArtForm(); editingLinked=[]; editingOrigLinked=[]; loadArticles(); }
   else toast('投稿に失敗しました',true);
 }
 function clearArtForm(){
@@ -958,8 +960,9 @@ function openArtModal(row){
   document.getElementById('editBody').value=row.body;
   fillSelect('editFolder',getFolders().art);
   if(row.folder) document.getElementById('editFolder').value=row.folder;
-  // photos配列はURLの文字列配列として保持
+  // photos＝表示用URL、origPhotos＝元写真URL（再コピー用）
   editingLinked=(row.photos||[]).map(u=>u);
+  editingOrigLinked=(row.origPhotos&&row.origPhotos.length)?row.origPhotos.map(u=>u):(row.photos||[]).map(u=>u);
   renderLinkedPhotos();
   openModal('artModal');
 }
@@ -985,6 +988,7 @@ function renderLinkedPhotos(){
 }
 function removeLinked(idx){
   editingLinked.splice(idx,1);
+  editingOrigLinked.splice(idx,1);
   renderLinkedPhotos();
 }
 async function updateArticle(){
@@ -997,7 +1001,8 @@ async function updateArticle(){
     title:document.getElementById('editTitle').value,
     body:document.getElementById('editBody').value,
     folder:document.getElementById('editFolder').value,
-    photos:photoUrls});
+    photos:photoUrls,
+    origPhotos:editingOrigLinked});
   if(d&&d.status==='ok'){ toast('✅ 記事を更新しました！ドライブフォルダも更新しました'); closeModal('artModal'); loadArticles(); }
   else toast('更新に失敗しました',true);
 }
@@ -1057,8 +1062,10 @@ function togglePpItem(el,url){
   el.classList.toggle('selected');
   if(el.classList.contains('selected')){
     if(!editingLinked.includes(url)) editingLinked.push(url);
+    if(!editingOrigLinked.includes(url)) editingOrigLinked.push(url);
   } else {
     editingLinked=editingLinked.filter(u=>u!==url);
+    editingOrigLinked=editingOrigLinked.filter(u=>u!==url);
   }
   updatePpCount();
 }

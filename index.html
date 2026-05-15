@@ -951,13 +951,25 @@ function clearArtForm(){
 
 // -------- 記事編集モーダル --------
 function openArtModal(row){
+  // ★ v4.3修正：editingLinkedをリセット
+  editingLinked=[];
+  
   document.getElementById('editRowId').value=row.rowId;
   document.getElementById('editTitle').value=row.title;
   document.getElementById('editBody').value=row.body;
   fillSelect('editFolder',getFolders().art);
   if(row.folder) document.getElementById('editFolder').value=row.folder;
-  // ★ v4.2修正: origPhotos（元写真URL）があればそれを使う、なければphotos（サムネイル）を使う
-  editingLinked=(row.origPhotos && row.origPhotos.length > 0)?(row.origPhotos||[]).map(u=>u):(row.photos||[]).map(u=>u);
+  
+  // ★ v4.3修正：origPhotos（元写真URL）があればそれを使う、なければphotos（サムネイル）を使う
+  // 万が一どちらも空の場合は空配列
+  if(row.origPhotos && row.origPhotos.length > 0){
+    editingLinked=(row.origPhotos||[]).map(u=>u);
+  } else if(row.photos && row.photos.length > 0) {
+    editingLinked=(row.photos||[]).map(u=>u);
+  } else {
+    editingLinked=[];
+  }
+  
   renderLinkedPhotos();
   openModal('artModal');
 }
@@ -986,15 +998,14 @@ function removeLinked(idx){
   renderLinkedPhotos();
 }
 async function updateArticle(){
-  // オリジナルURLで送信（GAS側でfileIdを逆引きしてコピー）
-  const photoUrls=editingLinked.map(item=>typeof item==='object'?item.origUrl:item);
+  // ★ v4.3修正：editingLinkedをそのまま送信（サムネイルURL or 元URL どちらでも対応）
   toast('⏳ Googleドライブを更新中…（しばらくお待ちください）');
   const d=await postGas({action:'updateArticle',
     rowId:document.getElementById('editRowId').value,
     title:document.getElementById('editTitle').value,
     body:document.getElementById('editBody').value,
     folder:document.getElementById('editFolder').value,
-    photos:photoUrls});
+    photos:editingLinked});
   if(d&&d.status==='ok'){ toast('✅ 記事を更新しました！ドライブフォルダも更新しました'); closeModal('artModal'); loadArticles(); }
   else toast('更新に失敗しました',true);
 }

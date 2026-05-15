@@ -679,11 +679,10 @@ function switchTab(name,btn){
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ 
   document.getElementById(id).classList.remove('open'); 
-  // ✅ 記事編集モーダルを閉じるときに編集用の写真変数をリセット
-  if(id === 'artModal'){
-    editingLinked = [];
-    editingOrigLinked = [];
-  }
+  // ✅ 注意：artModal を閉じるときに editingLinked をリセットしてはいけない
+  // なぜなら updateArticle() → closeModal() という流れで
+  // closeModal() が先に実行される場合があり、写真情報が失われるため
+  // 代わりに、postArticle/updateArticle 完了後に明示的にリセットする
 }
 function bgClose(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
 
@@ -954,6 +953,7 @@ async function postArticle(){
   if(d&&d.status==='ok'){ 
     toast('✅ 記事を投稿しました！ドライブにフォルダを作成しました'); 
     clearArtForm(); 
+    // ✅ 投稿成功後に変数をリセット
     editingLinked=[]; 
     editingOrigLinked=[]; 
     loadArticles(); 
@@ -1014,6 +1014,13 @@ function removeLinked(idx){
 async function updateArticle(){
   // オリジナルURLで送信（GAS側でfileIdを逆引きしてコピー）
   const photoUrls=editingLinked.map(item=>typeof item==='object'?item.origUrl:item);
+  
+  // 🔍 デバッグログ
+  console.log('=== updateArticle Debug ===');
+  console.log('editingLinked:', editingLinked);
+  console.log('editingOrigLinked:', editingOrigLinked);
+  console.log('photoUrls (mapped):', photoUrls);
+  
   toast('⏳ Googleドライブを更新中…（しばらくお待ちください）');
   const d=await postGas({action:'updateArticle',
     rowId:document.getElementById('editRowId').value,
@@ -1023,7 +1030,14 @@ async function updateArticle(){
     folder:document.getElementById('editFolder').value,
     photos:photoUrls,
     origPhotos:editingOrigLinked});
-  if(d&&d.status==='ok'){ toast('✅ 記事を更新しました！ドライブフォルダも更新しました'); closeModal('artModal'); loadArticles(); }
+  if(d&&d.status==='ok'){ 
+    toast('✅ 記事を更新しました！ドライブフォルダも更新しました'); 
+    // ✅ 更新成功後に変数をリセット
+    editingLinked = [];
+    editingOrigLinked = [];
+    closeModal('artModal'); 
+    loadArticles(); 
+  }
   else toast('更新に失敗しました',true);
 }
 async function deleteArticle(){

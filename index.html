@@ -474,7 +474,6 @@ textarea{resize:vertical;min-height:88px;line-height:1.65;}
     <div class="modal-handle"></div>
     <div class="modal-title">📝 記事を編集</div>
     <input type="hidden" id="editRowId">
-    <input type="hidden" id="editAuthor">
     <label>フォルダ</label>
     <div class="sel-wrap"><select id="editFolder"></select></div>
     <label>タイトル</label><input type="text" id="editTitle">
@@ -546,8 +545,7 @@ let allPhotos   = [];
 let artFilter   = 'すべて';
 let photoFilter = 'すべて';
 let ppFilter    = 'すべて';   // 写真選択モーダル内フィルター
-let editingLinked = [];       // 編集中の紐付け写真URL配列（表示用）
-let editingOrigLinked = [];   // 編集中の紐付け写真URL配列（元URL・再コピー用）
+let editingLinked = [];       // 編集中の紐付け写真URL配列
 
 // ============================================================
 // パスワード
@@ -677,13 +675,7 @@ function switchTab(name,btn){
 // モーダル
 // ============================================================
 function openModal(id){ document.getElementById(id).classList.add('open'); }
-function closeModal(id){ 
-  document.getElementById(id).classList.remove('open'); 
-  // ✅ 注意：artModal を閉じるときに editingLinked をリセットしてはいけない
-  // なぜなら updateArticle() → closeModal() という流れで
-  // closeModal() が先に実行される場合があり、写真情報が失われるため
-  // 代わりに、postArticle/updateArticle 完了後に明示的にリセットする
-}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function bgClose(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
 
 // ============================================================
@@ -776,18 +768,13 @@ function renderCal(){
   const today=new Date(); today.setHours(0,0,0,0);
   // スケジュールを日付でマップ化
   const evMap={};
-  // 日付を yyyy/MM/dd に正規化してマップ化
-  function normalizeDate(s){
-    if(!s) return '';
-    return String(s).replace(/-/g,'/').substring(0,10);
-  }
   allSchedules.forEach(r=>{
-    const key=normalizeDate(r.date);
+    const key=r.date; // "yyyy/MM/dd" or "yyyy-MM-dd"
     if(!evMap[key]) evMap[key]=[];
     evMap[key].push(r);
   });
   function toKey(y,m,d){ return y+'/'+String(m+1).padStart(2,'0')+'/'+String(d).padStart(2,'0'); }
-  function toKey2(y,m,d){ return toKey(y,m,d); } // 統一
+  function toKey2(y,m,d){ return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
   let cells='';
   let total=firstDay+lastDate; let rows=Math.ceil(total/7);
   for(let i=0;i<rows*7;i++){
@@ -818,8 +805,9 @@ function renderCal(){
 }
 
 function showCalDay(y,mo,d){
-  const k=y+'/'+String(mo+1).padStart(2,'0')+'/'+String(d).padStart(2,'0');
-  const evs=allSchedules.filter(r=>String(r.date).replace(/-/g,'/').substring(0,10)===k);
+  const k1=y+'/'+String(mo+1).padStart(2,'0')+'/'+String(d).padStart(2,'0');
+  const k2=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  const evs=allSchedules.filter(r=>r.date===k1||r.date===k2);
   const detail=document.getElementById('calDayDetail');
   const label=document.getElementById('calDayLabel');
   const list=document.getElementById('calDayList');
@@ -862,7 +850,7 @@ function openSchModal(r){
   document.getElementById('editSchRowId').value=r.rowId;
   document.getElementById('editSchTitle').value=r.title;
   document.getElementById('editSchType').value=r.type;
-  document.getElementById('editSchDate').value=String(r.date).replace(/\//g,'-').substring(0,10);
+  document.getElementById('editSchDate').value=r.date.replace(/\//g,'-');
   document.getElementById('editSchTime').value=r.time||'';
   document.getElementById('editSchMemo').value=r.memo||'';
   document.getElementById('editSchAuthor').value=r.author||'';
@@ -948,60 +936,24 @@ async function postArticle(){
   toast('⏳ Googleドライブに保存中…（しばらくお待ちください）');
   const d=await postGas({action:'addArticle',author,title,body,
     folder:document.getElementById('artFolder').value,
-    photos:photoUrls,
-    origPhotos:photoUrls}); // 新規投稿時はphotoUrls=元URLなのでそのまま
-  if(d&&d.status==='ok'){ 
-    toast('✅ 記事を投稿しました！ドライブにフォルダを作成しました'); 
-    clearArtForm(); 
-    // ✅ 投稿成功後に変数をリセット
-    editingLinked=[]; 
-    editingOrigLinked=[]; 
-    loadArticles(); 
-  }
+    photos:photoUrls});
+  if(d&&d.status==='ok'){ toast('✅ 記事を投稿しました！ドライブにフォルダを作成しました'); clearArtForm(); editingLinked=[]; loadArticles(); }
   else toast('投稿に失敗しました',true);
 }
 function clearArtForm(){
   document.getElementById('artTitle').value='';
   document.getElementById('artBody').value='';
-  // ✅ フォーム初期化時に編集用の写真変数もリセット
-  editingLinked=[];
-  editingOrigLinked=[];
 }
 
 // -------- 記事編集モーダル --------
 function openArtModal(row){
-  // ✅ モーダル開く前に初期化（新規投稿と編集の混在を防ぐ）
-  editingLinked = [];
-  editingOrigLinked = [];
-  
   document.getElementById('editRowId').value=row.rowId;
-  document.getElementById('editAuthor').value=row.author||'';
   document.getElementById('editTitle').value=row.title;
   document.getElementById('editBody').value=row.body;
   fillSelect('editFolder',getFolders().art);
   if(row.folder) document.getElementById('editFolder').value=row.folder;
-  
-  // ✅ 重要：photos＝表示用URL、origPhotos＝元写真URL（再コピー用）
+  // photos配列はURLの文字列配列として保持
   editingLinked=(row.photos||[]).map(u=>u);
-  
-  // ✅ origPhotos を優先。ない場合は photos でフォールバック
-  if(row.origPhotos && row.origPhotos.length){
-    editingOrigLinked = row.origPhotos.map(u=>u);
-    console.log('Using origPhotos from row.origPhotos');
-  } else if(row.photos && row.photos.length){
-    editingOrigLinked = row.photos.map(u=>u);
-    console.log('Fallback: Using photos as origPhotos');
-  } else {
-    editingOrigLinked = [];
-    console.log('No photos found in row');
-  }
-  
-  console.log('openArtModal initialized:', {
-    title: row.title,
-    editingLinkedCount: editingLinked.length,
-    editingOrigLinkedCount: editingOrigLinked.length
-  });
-  
   renderLinkedPhotos();
   openModal('artModal');
 }
@@ -1027,44 +979,19 @@ function renderLinkedPhotos(){
 }
 function removeLinked(idx){
   editingLinked.splice(idx,1);
-  editingOrigLinked.splice(idx,1);
   renderLinkedPhotos();
 }
 async function updateArticle(){
   // オリジナルURLで送信（GAS側でfileIdを逆引きしてコピー）
   const photoUrls=editingLinked.map(item=>typeof item==='object'?item.origUrl:item);
-  
-  // 🔍 デバッグログ
-  console.log('=== updateArticle Debug ===');
-  console.log('editingLinked:', editingLinked);
-  console.log('editingOrigLinked:', editingOrigLinked);
-  console.log('photoUrls (mapped):', photoUrls);
-  console.log('Row content:', {
-    rowId: document.getElementById('editRowId').value,
-    title: document.getElementById('editTitle').value,
-    hasPhotos: photoUrls.length > 0
-  });
-  
   toast('⏳ Googleドライブを更新中…（しばらくお待ちください）');
-  
-  // ✅ 常に photos と origPhotos を送信（何も変更されていなくても）
   const d=await postGas({action:'updateArticle',
     rowId:document.getElementById('editRowId').value,
-    author:document.getElementById('editAuthor').value,
     title:document.getElementById('editTitle').value,
     body:document.getElementById('editBody').value,
     folder:document.getElementById('editFolder').value,
-    photos:photoUrls.length > 0 ? photoUrls : [],  // 明示的に配列を送信
-    origPhotos:editingOrigLinked.length > 0 ? editingOrigLinked : []});  // 明示的に配列を送信
-  
-  if(d&&d.status==='ok'){ 
-    toast('✅ 記事を更新しました！ドライブフォルダも更新しました'); 
-    // ✅ 更新成功後に変数をリセット
-    editingLinked = [];
-    editingOrigLinked = [];
-    closeModal('artModal'); 
-    loadArticles(); 
-  }
+    photos:photoUrls});
+  if(d&&d.status==='ok'){ toast('✅ 記事を更新しました！ドライブフォルダも更新しました'); closeModal('artModal'); loadArticles(); }
   else toast('更新に失敗しました',true);
 }
 async function deleteArticle(){
@@ -1123,10 +1050,8 @@ function togglePpItem(el,url){
   el.classList.toggle('selected');
   if(el.classList.contains('selected')){
     if(!editingLinked.includes(url)) editingLinked.push(url);
-    if(!editingOrigLinked.includes(url)) editingOrigLinked.push(url);
   } else {
     editingLinked=editingLinked.filter(u=>u!==url);
-    editingOrigLinked=editingOrigLinked.filter(u=>u!==url);
   }
   updatePpCount();
 }

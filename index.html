@@ -474,6 +474,7 @@ textarea{resize:vertical;min-height:88px;line-height:1.65;}
     <div class="modal-handle"></div>
     <div class="modal-title">📝 記事を編集</div>
     <input type="hidden" id="editRowId">
+    <label>投稿者（参考）</label><input type="text" id="editAuthor" disabled style="background:var(--border);color:var(--sub);cursor:not-allowed;">
     <label>フォルダ</label>
     <div class="sel-wrap"><select id="editFolder"></select></div>
     <label>タイトル</label><input type="text" id="editTitle">
@@ -954,6 +955,7 @@ function openArtModal(row){
   document.getElementById('editRowId').value=row.rowId;
   document.getElementById('editTitle').value=row.title;
   document.getElementById('editBody').value=row.body;
+  document.getElementById('editAuthor').value=row.author||'';  // ★ 追加: 投稿者情報を表示（参考用）
   fillSelect('editFolder',getFolders().art);
   if(row.folder) document.getElementById('editFolder').value=row.folder;
   // photos配列はURLの文字列配列として保持

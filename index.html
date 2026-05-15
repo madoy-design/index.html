@@ -955,11 +955,11 @@ function openArtModal(row){
   document.getElementById('editRowId').value=row.rowId;
   document.getElementById('editTitle').value=row.title;
   document.getElementById('editBody').value=row.body;
-  document.getElementById('editAuthor').value=row.author||'';  // ★ 追加: 投稿者情報を表示（参考用）
+  document.getElementById('editAuthor').value=row.author||'';  // ★ 投稿者を入力
   fillSelect('editFolder',getFolders().art);
   if(row.folder) document.getElementById('editFolder').value=row.folder;
-  // photos配列はURLの文字列配列として保持
-  editingLinked=(row.photos||[]).map(u=>u);
+  // ★ 修正: origPhotos（元写真URL）があればそれを使う、なければphotos（サムネイル）を使う
+  editingLinked=(row.origPhotos && row.origPhotos.length > 0)?(row.origPhotos||[]).map(u=>u):(row.photos||[]).map(u=>u);
   renderLinkedPhotos();
   openModal('artModal');
 }

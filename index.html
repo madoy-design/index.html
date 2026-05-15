@@ -474,6 +474,7 @@ textarea{resize:vertical;min-height:88px;line-height:1.65;}
     <div class="modal-handle"></div>
     <div class="modal-title">📝 記事を編集</div>
     <input type="hidden" id="editRowId">
+    <input type="hidden" id="editAuthor">
     <label>フォルダ</label>
     <div class="sel-wrap"><select id="editFolder"></select></div>
     <label>タイトル</label><input type="text" id="editTitle">
@@ -952,6 +953,7 @@ function clearArtForm(){
 // -------- 記事編集モーダル --------
 function openArtModal(row){
   document.getElementById('editRowId').value=row.rowId;
+  document.getElementById('editAuthor').value=row.author||'';
   document.getElementById('editTitle').value=row.title;
   document.getElementById('editBody').value=row.body;
   fillSelect('editFolder',getFolders().art);
@@ -991,6 +993,7 @@ async function updateArticle(){
   toast('⏳ Googleドライブを更新中…（しばらくお待ちください）');
   const d=await postGas({action:'updateArticle',
     rowId:document.getElementById('editRowId').value,
+    author:document.getElementById('editAuthor').value,
     title:document.getElementById('editTitle').value,
     body:document.getElementById('editBody').value,
     folder:document.getElementById('editFolder').value,

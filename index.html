@@ -677,7 +677,14 @@ function switchTab(name,btn){
 // モーダル
 // ============================================================
 function openModal(id){ document.getElementById(id).classList.add('open'); }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function closeModal(id){ 
+  document.getElementById(id).classList.remove('open'); 
+  // ✅ 記事編集モーダルを閉じるときに編集用の写真変数をリセット
+  if(id === 'artModal'){
+    editingLinked = [];
+    editingOrigLinked = [];
+  }
+}
 function bgClose(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
 
 // ============================================================
@@ -944,16 +951,29 @@ async function postArticle(){
     folder:document.getElementById('artFolder').value,
     photos:photoUrls,
     origPhotos:photoUrls}); // 新規投稿時はphotoUrls=元URLなのでそのまま
-  if(d&&d.status==='ok'){ toast('✅ 記事を投稿しました！ドライブにフォルダを作成しました'); clearArtForm(); editingLinked=[]; editingOrigLinked=[]; loadArticles(); }
+  if(d&&d.status==='ok'){ 
+    toast('✅ 記事を投稿しました！ドライブにフォルダを作成しました'); 
+    clearArtForm(); 
+    editingLinked=[]; 
+    editingOrigLinked=[]; 
+    loadArticles(); 
+  }
   else toast('投稿に失敗しました',true);
 }
 function clearArtForm(){
   document.getElementById('artTitle').value='';
   document.getElementById('artBody').value='';
+  // ✅ フォーム初期化時に編集用の写真変数もリセット
+  editingLinked=[];
+  editingOrigLinked=[];
 }
 
 // -------- 記事編集モーダル --------
 function openArtModal(row){
+  // ✅ モーダル開く前に初期化（新規投稿と編集の混在を防ぐ）
+  editingLinked = [];
+  editingOrigLinked = [];
+  
   document.getElementById('editRowId').value=row.rowId;
   document.getElementById('editAuthor').value=row.author||'';
   document.getElementById('editTitle').value=row.title;

@@ -980,9 +980,28 @@ function openArtModal(row){
   document.getElementById('editBody').value=row.body;
   fillSelect('editFolder',getFolders().art);
   if(row.folder) document.getElementById('editFolder').value=row.folder;
-  // photos＝表示用URL、origPhotos＝元写真URL（再コピー用）
+  
+  // ✅ 重要：photos＝表示用URL、origPhotos＝元写真URL（再コピー用）
   editingLinked=(row.photos||[]).map(u=>u);
-  editingOrigLinked=(row.origPhotos&&row.origPhotos.length)?row.origPhotos.map(u=>u):(row.photos||[]).map(u=>u);
+  
+  // ✅ origPhotos を優先。ない場合は photos でフォールバック
+  if(row.origPhotos && row.origPhotos.length){
+    editingOrigLinked = row.origPhotos.map(u=>u);
+    console.log('Using origPhotos from row.origPhotos');
+  } else if(row.photos && row.photos.length){
+    editingOrigLinked = row.photos.map(u=>u);
+    console.log('Fallback: Using photos as origPhotos');
+  } else {
+    editingOrigLinked = [];
+    console.log('No photos found in row');
+  }
+  
+  console.log('openArtModal initialized:', {
+    title: row.title,
+    editingLinkedCount: editingLinked.length,
+    editingOrigLinkedCount: editingOrigLinked.length
+  });
+  
   renderLinkedPhotos();
   openModal('artModal');
 }
@@ -1020,16 +1039,24 @@ async function updateArticle(){
   console.log('editingLinked:', editingLinked);
   console.log('editingOrigLinked:', editingOrigLinked);
   console.log('photoUrls (mapped):', photoUrls);
+  console.log('Row content:', {
+    rowId: document.getElementById('editRowId').value,
+    title: document.getElementById('editTitle').value,
+    hasPhotos: photoUrls.length > 0
+  });
   
   toast('⏳ Googleドライブを更新中…（しばらくお待ちください）');
+  
+  // ✅ 常に photos と origPhotos を送信（何も変更されていなくても）
   const d=await postGas({action:'updateArticle',
     rowId:document.getElementById('editRowId').value,
     author:document.getElementById('editAuthor').value,
     title:document.getElementById('editTitle').value,
     body:document.getElementById('editBody').value,
     folder:document.getElementById('editFolder').value,
-    photos:photoUrls,
-    origPhotos:editingOrigLinked});
+    photos:photoUrls.length > 0 ? photoUrls : [],  // 明示的に配列を送信
+    origPhotos:editingOrigLinked.length > 0 ? editingOrigLinked : []});  // 明示的に配列を送信
+  
   if(d&&d.status==='ok'){ 
     toast('✅ 記事を更新しました！ドライブフォルダも更新しました'); 
     // ✅ 更新成功後に変数をリセット

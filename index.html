@@ -675,13 +675,7 @@ function switchTab(name,btn){
 // モーダル
 // ============================================================
 function openModal(id){ document.getElementById(id).classList.add('open'); }
-function closeModal(id){ 
-  document.getElementById(id).classList.remove('open');
-  // ★ バグ②修正①: artModal閉じるときにeditingLinkedをリセット
-  if(id==='artModal') {
-    editingLinked=[];
-  }
-}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function bgClose(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
 
 // ============================================================
@@ -953,22 +947,17 @@ async function postArticle(){
 function clearArtForm(){
   document.getElementById('artTitle').value='';
   document.getElementById('artBody').value='';
-  // ★ バグ②修正②: clearArtFormでも変数をリセット
-  editingLinked=[];
 }
 
 // -------- 記事編集モーダル --------
 function openArtModal(row){
-  // ★ バグ②修正③: openArtModal先頭で念のため初期化
-  editingLinked=[];
-  
   document.getElementById('editRowId').value=row.rowId;
   document.getElementById('editTitle').value=row.title;
   document.getElementById('editBody').value=row.body;
   fillSelect('editFolder',getFolders().art);
   if(row.folder) document.getElementById('editFolder').value=row.folder;
-  // photos配列はURLの文字列の配列として保持
-  editingLinked=(row.photos||[]).map(u=>u);
+  // ★ v4.2修正: origPhotos（元写真URL）があればそれを使う、なければphotos（サムネイル）を使う
+  editingLinked=(row.origPhotos && row.origPhotos.length > 0)?(row.origPhotos||[]).map(u=>u):(row.photos||[]).map(u=>u);
   renderLinkedPhotos();
   openModal('artModal');
 }

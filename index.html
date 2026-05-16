@@ -587,33 +587,10 @@ function changePw(){
 }
 
 // ============================================================
-// ★ v4.4修正: フォルダ管理
+// フォルダ管理
 // ============================================================
-// キャッシュ用変数
-let folderCache = null;
-async function getFolders(){ 
-  // キャッシュがあればそれを返す
-  if(folderCache) return folderCache;
-  
-  // キャッシュがなければGASから取得
-  try {
-    const d = await callGas({ action: 'getFolders' });
-    if(d && d.data) {
-      folderCache = d.data;
-      return folderCache;
-    }
-  } catch(e) {
-    console.log('フォルダ取得エラー', e);
-  }
-  
-  // フォールバック：デフォルトを返す
-  return { art: ['第1回記事','第2回記事','第3回記事'], photo: ['先生写真','行事写真','その他写真'] };
-}
-
-function saveFolders(f){ 
-  // v4.4: ローカルストレージは不要（GASで管理）
-  folderCache = f;  // キャッシュ更新のみ
-}
+function getFolders(){ const s=localStorage.getItem(FOLDER_KEY); return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_FOLDERS)); }
+function saveFolders(f){ localStorage.setItem(FOLDER_KEY,JSON.stringify(f)); }
 
 function openAddFolder(type){
   document.getElementById('folderModalType').value=type;
@@ -621,52 +598,90 @@ function openAddFolder(type){
   document.getElementById('newFolderName').value='';
   openModal('folderModal');
 }
-async function addFolder(){
+// ★ v4.6修正: addFolder - 確実にGASに送信
+function addFolder(){
   const name=document.getElementById('newFolderName').value.trim();
   const type=document.getElementById('folderModalType').value;
-  if(!name){ toast('フォルダ名を入力してください',true); return; }
   
-  // ★ v4.4修正：GASに送信してサーバー側で追加
-  const d = await postGas({
-    action: 'addFolder',
-    type: type,
-    name: name
-  });
-  
-  if(d && d.status === 'ok') {
-    document.getElementById('newFolderName').value='';
-    closeModal('folderModal');
-    toast('📁 フォルダを作成しました！');
-    folderCache = null;  // キャッシュをリセット
-    await refreshFolderUI();
-    renderFolderMgr();
-  } else {
-    toast(d?.message || 'フォルダ追加に失敗しました',true);
+  if(!name){ 
+    toast('フォルダ名を入力してください',true); 
+    return; 
   }
+  if(!type){ 
+    toast('フォルダの種別が不正です',true); 
+    return; 
+  }
+  
+  toast('⏳ フォルダを追加中...');
+  
+  // GASに送信（GET方式で確実に送信）
+  const gasUrl = localStorage.getItem('pta_gas_url') || '';
+  if(!gasUrl) {
+    toast('GAS URLが設定されていません',true);
+    return;
+  }
+  
+  const url = gasUrl + '?action=addFolder&type=' + encodeURIComponent(type) + '&name=' + encodeURIComponent(name);
+  
+  fetch(url)
+    .then(r => r.json())
+    .then(d => {
+      if(d && d.status === 'ok') {
+        document.getElementById('newFolderName').value='';
+        closeModal('folderModal');
+        toast('✅ フォルダを追加しました！');
+        // キャッシュをリセット
+        folderCache = null;
+        // UIを更新（非同期で待たずに実行）
+        refreshFolderUI();
+        renderFolderMgr();
+      } else {
+        toast(d?.message || 'フォルダ追加に失敗しました',true);
+      }
+    })
+    .catch(e => {
+      console.error('フォルダ追加エラー:', e);
+      toast('エラーが発生しました：' + e.message, true);
+    });
 }
 
-async function delFolder(type,name){
+// ★ v4.6修正: delFolder - 確実にGASに送信
+function delFolder(type,name){
   if(!confirm(`「${name}」を削除しますか？`)) return;
   
-  // ★ v4.4修正：GASに送信してサーバー側で削除
-  const d = await postGas({
-    action: 'deleteFolder',
-    type: type,
-    name: name
-  });
+  toast('⏳ フォルダを削除中...');
   
-  if(d && d.status === 'ok') {
-    toast('🗑️ フォルダを削除しました');
-    folderCache = null;  // キャッシュをリセット
-    await refreshFolderUI();
-    renderFolderMgr();
-  } else {
-    toast(d?.message || 'フォルダ削除に失敗しました',true);
+  // GASに送信（GET方式で確実に送信）
+  const gasUrl = localStorage.getItem('pta_gas_url') || '';
+  if(!gasUrl) {
+    toast('GAS URLが設定されていません',true);
+    return;
   }
+  
+  const url = gasUrl + '?action=deleteFolder&type=' + encodeURIComponent(type) + '&name=' + encodeURIComponent(name);
+  
+  fetch(url)
+    .then(r => r.json())
+    .then(d => {
+      if(d && d.status === 'ok') {
+        toast('✅ フォルダを削除しました');
+        // キャッシュをリセット
+        folderCache = null;
+        // UIを更新（非同期で待たずに実行）
+        refreshFolderUI();
+        renderFolderMgr();
+      } else {
+        toast(d?.message || 'フォルダ削除に失敗しました',true);
+      }
+    })
+    .catch(e => {
+      console.error('フォルダ削除エラー:', e);
+      toast('エラーが発生しました：' + e.message, true);
+    });
 }
 
-async function refreshFolderUI(){
-  const f=await getFolders();  // ★ await追加
+function refreshFolderUI(){
+  const f=getFolders();
   fillSelect('artFolder', f.art);
   fillSelect('editFolder', f.art);
   fillSelect('photoFolder', f.photo);

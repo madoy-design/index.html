@@ -587,10 +587,33 @@ function changePw(){
 }
 
 // ============================================================
-// フォルダ管理
+// ★ v4.4修正: フォルダ管理
 // ============================================================
-function getFolders(){ const s=localStorage.getItem(FOLDER_KEY); return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_FOLDERS)); }
-function saveFolders(f){ localStorage.setItem(FOLDER_KEY,JSON.stringify(f)); }
+// キャッシュ用変数
+let folderCache = null;
+async function getFolders(){ 
+  // キャッシュがあればそれを返す
+  if(folderCache) return folderCache;
+  
+  // キャッシュがなければGASから取得
+  try {
+    const d = await callGas({ action: 'getFolders' });
+    if(d && d.data) {
+      folderCache = d.data;
+      return folderCache;
+    }
+  } catch(e) {
+    console.log('フォルダ取得エラー', e);
+  }
+  
+  // フォールバック：デフォルトを返す
+  return { art: ['第1回記事','第2回記事','第3回記事'], photo: ['先生写真','行事写真','その他写真'] };
+}
+
+function saveFolders(f){ 
+  // v4.4: ローカルストレージは不要（GASで管理）
+  folderCache = f;  // キャッシュ更新のみ
+}
 
 function openAddFolder(type){
   document.getElementById('folderModalType').value=type;
@@ -598,26 +621,52 @@ function openAddFolder(type){
   document.getElementById('newFolderName').value='';
   openModal('folderModal');
 }
-function addFolder(){
+async function addFolder(){
   const name=document.getElementById('newFolderName').value.trim();
   const type=document.getElementById('folderModalType').value;
   if(!name){ toast('フォルダ名を入力してください',true); return; }
-  const f=getFolders();
-  if(f[type].includes(name)){ toast('同じ名前のフォルダがあります',true); return; }
-  f[type].push(name); saveFolders(f);
-  closeModal('folderModal'); toast('📁 フォルダを作成しました！');
-  refreshFolderUI(); renderFolderMgr();
-}
-function delFolder(type,name){
-  if(!confirm(`「${name}」を削除しますか？`)) return;
-  const f=getFolders();
-  f[type]=f[type].filter(x=>x!==name); saveFolders(f);
-  toast('🗑️ フォルダを削除しました');
-  refreshFolderUI(); renderFolderMgr();
+  
+  // ★ v4.4修正：GASに送信してサーバー側で追加
+  const d = await postGas({
+    action: 'addFolder',
+    type: type,
+    name: name
+  });
+  
+  if(d && d.status === 'ok') {
+    document.getElementById('newFolderName').value='';
+    closeModal('folderModal');
+    toast('📁 フォルダを作成しました！');
+    folderCache = null;  // キャッシュをリセット
+    await refreshFolderUI();
+    renderFolderMgr();
+  } else {
+    toast(d?.message || 'フォルダ追加に失敗しました',true);
+  }
 }
 
-function refreshFolderUI(){
-  const f=getFolders();
+async function delFolder(type,name){
+  if(!confirm(`「${name}」を削除しますか？`)) return;
+  
+  // ★ v4.4修正：GASに送信してサーバー側で削除
+  const d = await postGas({
+    action: 'deleteFolder',
+    type: type,
+    name: name
+  });
+  
+  if(d && d.status === 'ok') {
+    toast('🗑️ フォルダを削除しました');
+    folderCache = null;  // キャッシュをリセット
+    await refreshFolderUI();
+    renderFolderMgr();
+  } else {
+    toast(d?.message || 'フォルダ削除に失敗しました',true);
+  }
+}
+
+async function refreshFolderUI(){
+  const f=await getFolders();  // ★ await追加
   fillSelect('artFolder', f.art);
   fillSelect('editFolder', f.art);
   fillSelect('photoFolder', f.photo);
@@ -951,25 +1000,13 @@ function clearArtForm(){
 
 // -------- 記事編集モーダル --------
 function openArtModal(row){
-  // ★ v4.3修正：editingLinkedをリセット
-  editingLinked=[];
-  
   document.getElementById('editRowId').value=row.rowId;
   document.getElementById('editTitle').value=row.title;
   document.getElementById('editBody').value=row.body;
   fillSelect('editFolder',getFolders().art);
   if(row.folder) document.getElementById('editFolder').value=row.folder;
-  
-  // ★ v4.3修正：origPhotos（元写真URL）があればそれを使う、なければphotos（サムネイル）を使う
-  // 万が一どちらも空の場合は空配列
-  if(row.origPhotos && row.origPhotos.length > 0){
-    editingLinked=(row.origPhotos||[]).map(u=>u);
-  } else if(row.photos && row.photos.length > 0) {
-    editingLinked=(row.photos||[]).map(u=>u);
-  } else {
-    editingLinked=[];
-  }
-  
+  // photos配列はURLの文字列配列として保持
+  editingLinked=(row.photos||[]).map(u=>u);
   renderLinkedPhotos();
   openModal('artModal');
 }
@@ -998,14 +1035,15 @@ function removeLinked(idx){
   renderLinkedPhotos();
 }
 async function updateArticle(){
-  // ★ v4.3修正：editingLinkedをそのまま送信（サムネイルURL or 元URL どちらでも対応）
+  // オリジナルURLで送信（GAS側でfileIdを逆引きしてコピー）
+  const photoUrls=editingLinked.map(item=>typeof item==='object'?item.origUrl:item);
   toast('⏳ Googleドライブを更新中…（しばらくお待ちください）');
   const d=await postGas({action:'updateArticle',
     rowId:document.getElementById('editRowId').value,
     title:document.getElementById('editTitle').value,
     body:document.getElementById('editBody').value,
     folder:document.getElementById('editFolder').value,
-    photos:editingLinked});
+    photos:photoUrls});
   if(d&&d.status==='ok'){ toast('✅ 記事を更新しました！ドライブフォルダも更新しました'); closeModal('artModal'); loadArticles(); }
   else toast('更新に失敗しました',true);
 }
